@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 桌面宠物 - 小黑</title>
+    <style>
+        :root {
+            --sidebar-bg: #f8fafc;
+            --main-bg: #f1f5f9;
+            --user-bubble: #c6f6d5;
+            --user-bubble-border: #a3e4b7;
+            --ai-bubble: #ffffff;
+            --ai-bubble-border: #e2e8f0;
+            --text-dark: #1e293b;
+            --text-gray: #475569;
+            --text-light: #94a3b8;
+            --accent: #38a169;
+            --accent-hover: #2f855a;
+            --input-bg: #ffffff;
+            --border: #e2e8f0;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            color: var(--text-dark);
+            background: var(--main-bg);
+            overflow: hidden;
+        }
+
+        /* ========== 整体左右分栏 ========== */
+        .app-container {
+            display: flex;
+            height: 100vh;
+            width: 100%;
+        }
+
+        /* ========== 左侧边栏 ========== */
+        .sidebar {
+            width: 280px;
+            min-width: 280px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 32px 24px;
+            gap: 40px;
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar-logo .avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #68d391 0%, #38a169 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .sidebar-logo .title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        .sidebar-info {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sidebar-info .label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-light);
+            font-weight: 600;
+        }
+
+        .sidebar-info .desc {
+            font-size: 14px;
+            color: var(--text-gray);
+            line-height: 1.6;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            font-size: 12px;
+            color: var(--text-light);
+            border-top: 1px solid var(--border);
+            padding-top: 20px;
+        }
+
+        /* ========== 右侧聊天主体 ========== */
+        .chat-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            background: var(--main-bg);
+        }
+
+        /* 聊天消息列表 */
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 28px 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            scroll-behavior: smooth;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: var(--text-light);
+            border-radius: 20px;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-light);
+            gap: 12px;
+            pointer-events: none;
+        }
+
+        .empty-state .icon {
+            font-size: 56px;
+            opacity: 0.5;
+        }
+
+        .empty-state .hint {
+            font-size: 15px;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        /* ========== 消息气泡 ========== */
+        .message-row {
+            display: flex;
+            max-width: 80%;
+            animation: fadeIn 0.25s ease-out;
+        }
+
+        .message-row.user {
+            align-self: flex-end;
+            justify-content: flex-end;
+        }
+
+        .message-row.ai {
+            align-self: flex-start;
+            justify-content: flex-start;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .bubble {
+            padding: 12px 18px;
+            border-radius: 18px;
+            font-size: 14.5px;
+            line-height: 1.65;
+            word-break: break-word;
+            white-space: pre-wrap;
+            position: relative;
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* 用户气泡 - 淡青绿色 */
+        .bubble.user {
+            background: var(--user-bubble);
+            color: var(--text-dark);
+            border: 1px solid var(--user-bubble-border);
+            border-bottom-right-radius: 6px;
+        }
+
+        /* AI 气泡 - 纯白色 */
+        .bubble.ai {
+            background: var(--ai-bubble);
+            color: var(--text-gray);
+            border: 1px solid var(--ai-bubble-border);
+            border-bottom-left-radius: 6px;
+        }
+
+        /* 打字光标闪烁 */
+        .bubble.ai.streaming::after {
+            content: "";
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: var(--accent);
+            margin-left: 2px;
+            vertical-align: text-bottom;
+            border-radius: 1px;
+            animation: blink 0.7s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        /* ========== 底部输入区域 ========== */
+        .chat-input-area {
+            padding: 16px 32px 20px;
+            background: var(--sidebar-bg);
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chat-input-area input {
+            flex: 1;
+            padding: 12px 18px;
+            border: 1.5px solid var(--border);
+            border-radius: 26px;
+            font-size: 14.5px;
+            background: var(--input-bg);
+            color: var(--text-dark);
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .chat-input-area input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgb(56 161 105 / 0.1);
+        }
+
+        .chat-input-area input:disabled {
+            background: #f1f5f9;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .chat-input-area input::placeholder {
+            color: var(--text-light);
+        }
+
+        .chat-input-area button {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: none;
+            background: var(--accent);
+            color: #fff;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background 0.2s, transform 0.15s, opacity 0.2s;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .chat-input-area button:hover:not(:disabled) {
+            background: var(--accent-hover);
+            transform: scale(1.05);
+        }
+
+        .chat-input-area button:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+
+        .chat-input-area button:disabled {
+            background: var(--text-light);
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        /* ========== 响应式 ========== */
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+            .chat-messages {
+                padding: 16px 14px;
+            }
+            .chat-input-area {
+                padding: 12px 14px 16px;
+            }
+            .message-row {
+                max-width: 90%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+
+    <!-- ========== 左侧边栏 ========== -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="avatar">🐱</div>
+            <div class="title">小黑</div>
+        </div>
+
+        <div class="sidebar-info">
+            <span class="label">关于我</span>
+            <p class="desc">我是一只叫小黑的桌面宠物，说话简短可爱，每次回复不超过 50 字。喵~</p>
+        </div>
+
+        <div class="sidebar-info">
+            <span class="label">模型</span>
+            <p class="desc">Qwen3.6-Flash</p>
+        </div>
+
+        <div class="sidebar-footer">© 2026 小黑 · AI 伙伴</div>
+    </aside>
+
+    <!-- ========== 右侧聊天区域 ========== -->
+    <main class="chat-main">
+        <div class="chat-messages" id="chatMessages">
+            <div class="empty-state" id="emptyState">
+                <div class="icon">🐱</div>
+                <div class="hint">和小黑打个招呼吧~<br>输入消息后按回车发送</div>
+            </div>
+        </div>
+
+        <div class="chat-input-area">
+            <input
+                type="text"
+                id="userInput"
+                placeholder="输入你的消息..."
+                autocomplete="off"
+            >
+            <button id="sendBtn" title="发送">▶</button>
+        </div>
+    </main>
+
+</div>
+
+<script>
+    (function () {
+        const API_URL = "http://localhost:8910/api/text-chat";
+
+        const chatMessages = document.getElementById("chatMessages");
+        const emptyState = document.getElementById("emptyState");
+        const userInput = document.getElementById("userInput");
+        const sendBtn = document.getElementById("sendBtn");
+
+        let isStreaming = false;
+
+        // ==================== 工具函数 ====================
+
+        /** 滚动到消息列表底部 */
+        function scrollToBottom() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        /** 隐藏空状态 */
+        function hideEmptyState() {
+            if (emptyState) {
+                emptyState.style.display = "none";
+            }
+        }
+
+        /** 创建消息行 DOM */
+        function createMessageRow(role, content) {
+            const row = document.createElement("div");
+            row.className = "message-row " + role;
+
+            const bubble = document.createElement("div");
+            bubble.className = "bubble " + role;
+            bubble.textContent = content;
+
+            row.appendChild(bubble);
+            return row;
+        }
+
+        /** 锁定输入（AI 回复中） */
+        function setInputLocked(locked) {
+            isStreaming = locked;
+            userInput.disabled = locked;
+            sendBtn.disabled = locked;
+            if (locked) {
+                userInput.style.cursor = "not-allowed";
+            } else {
+                userInput.style.cursor = "";
+                userInput.focus();
+            }
+        }
+
+        // ==================== 流式读取与渲染 ====================
+
+        /**
+         * 发送消息并流式读取 AI 回复
+         * 使用 fetch + ReadableStream + TextDecoder，逐行解析 SSE data:
+         */
+        async function sendMessage(text) {
+            if (!text || text.trim() === "") return;
+            if (isStreaming) return;
+
+            // 1. 渲染用户消息气泡
+            hideEmptyState();
+            chatMessages.appendChild(createMessageRow("user", text));
+            scrollToBottom();
+
+            // 2. 锁定输入
+            setInputLocked(true);
+
+            // 3. 创建 AI 消息行（流式写入）
+            const aiRow = document.createElement("div");
+            aiRow.className = "message-row ai";
+            const aiBubble = document.createElement("div");
+            aiBubble.className = "bubble ai streaming";
+            aiRow.appendChild(aiBubble);
+            chatMessages.appendChild(aiRow);
+            scrollToBottom();
+
+            let abortController = null;
+
+            try {
+                abortController = new AbortController();
+
+                const response = await fetch(API_URL, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ text: text }),
+                    signal: abortController.signal
+                });
+
+                if (!response.ok) {
+                    throw new Error("HTTP " + response.status);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+                let buffer = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+
+                    // 按 \n\n 分割独立事件块
+                    const parts = buffer.split("\n\n");
+                    // 最后一段可能不完整，保留回 buffer
+                    buffer = parts.pop();
+
+                    for (const part of parts) {
+                        if (!part.trim()) continue;
+
+                        // 解析以 data: 开头的行
+                        const lines = part.split("\n");
+                        for (const line of lines) {
+                            const trimmed = line.trim();
+                            if (!trimmed.startsWith("data:")) continue;
+
+                            const content = trimmed.slice(5).trim();
+                            if (content === "[DONE]") {
+                                // 结束标记：去掉流式光标
+                                aiBubble.classList.remove("streaming");
+                                return;
+                            }
+
+                            // 实时追加文本
+                            aiBubble.textContent += content;
+                            scrollToBottom();
+                        }
+                    }
+                }
+
+                // reader 完成但没收到 [DONE]
+                aiBubble.classList.remove("streaming");
+
+            } catch (error) {
+                if (error.name === "AbortError") return;
+                aiBubble.classList.remove("streaming");
+                aiBubble.textContent = "【！网络出错，请重试】";
+                aiBubble.style.color = "#e53e3e";
+                scrollToBottom();
+            } finally {
+                setInputLocked(false);
+            }
+        }
+
+        // ==================== 事件绑定 ====================
+
+        /** 发送按钮点击 */
+        sendBtn.addEventListener("click", function () {
+            const text = userInput.value;
+            sendMessage(text);
+            userInput.value = "";
+        });
+
+        /** 回车发送 */
+        userInput.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                const text = userInput.value;
+                sendMessage(text);
+                userInput.value = "";
+            }
+        });
+
+        // ==================== 初始化 ====================
+        userInput.focus();
+    })();
+</script>
+
+</body>
+</html>
